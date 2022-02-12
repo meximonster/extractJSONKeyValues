@@ -1,8 +1,11 @@
-package main
+package extract_test
 
 import (
-	"encoding/json"
-	"fmt"
+	"reflect"
+	"sort"
+	"testing"
+
+	extract "github.com/meximonster/extractJsonKeys"
 )
 
 var o1 = []byte(`{
@@ -371,75 +374,17 @@ var o2 = []byte(`[
 
 var inputs = [][]byte{o1, o2}
 
-func main() {
-	var keys *[]string
+func TestExtract(t *testing.T) {
+	var outputs [][]string
 	for i := range inputs {
-		i := unmarshalJSON(inputs[i])
-		switch t := i.(type) {
-		case map[string]interface{}:
-			keys = extractKeysFromJson(&[]string{}, t)
-		case []interface{}:
-			keys = extractKeysFromJsonSlice(&[]string{}, t)
-		}
-		uniqueKeys := removeDuplicates(*keys)
-		fmt.Println(uniqueKeys)
+		keys := extract.ExtractJSONKeys(inputs[i])
+		outputs = append(outputs, keys)
 	}
-}
-
-func unmarshalJSON(o []byte) interface{} {
-	var m map[string]interface{}
-	err := json.Unmarshal(o, &m)
-	if err != nil {
-		var s []interface{}
-		err = json.Unmarshal(o, &s)
-		return s
+	for i := range outputs {
+		sort.Strings(outputs[i])
 	}
-	return m
-}
-
-func extractKeysFromJson(keys *[]string, m map[string]interface{}) *[]string {
-	for key, value := range m {
-		*keys = append(*keys, key)
-		switch t := value.(type) {
-		case map[string]interface{}:
-			extractKeysFromJson(keys, t)
-		case []interface{}:
-			for item := range t {
-				switch t := t[item].(type) {
-				case map[string]interface{}:
-					extractKeysFromJson(keys, t)
-				}
-			}
-		}
+	equal := reflect.DeepEqual(outputs[0], outputs[1])
+	if !equal {
+		t.Errorf("slices not equal!")
 	}
-	return keys
-}
-
-func extractKeysFromJsonSlice(keys *[]string, s []interface{}) *[]string {
-	for _, item := range s {
-		switch t := item.(type) {
-		case map[string]interface{}:
-			extractKeysFromJson(keys, t)
-		case []interface{}:
-			for item := range t {
-				switch t := t[item].(type) {
-				case map[string]interface{}:
-					extractKeysFromJson(keys, t)
-				}
-			}
-		}
-	}
-	return keys
-}
-
-func removeDuplicates(strSlice []string) []string {
-	allKeys := make(map[string]bool)
-	list := []string{}
-	for _, item := range strSlice {
-		if _, value := allKeys[item]; !value {
-			allKeys[item] = true
-			list = append(list, item)
-		}
-	}
-	return list
 }
