@@ -7,42 +7,39 @@ import (
 
 func ExtractJSONKeys(o []byte) []string {
 	var keys *[]string
-	i := unmarshalJSON(o)
-	switch t := i.(type) {
-	case map[string]interface{}:
-		keys = GetKeysFromJson(&[]string{}, t)
-	case []interface{}:
-		keys = GetKeysFromJsonSlice(&[]string{}, t)
+	var m map[string]interface{}
+	err := json.Unmarshal(o, &m)
+	if err != nil {
+		log.Fatal(err)
 	}
+	keys = getKeysFromJson(&[]string{}, m)
 	uniqueKeys := removeDuplicates(*keys)
 	return uniqueKeys
 }
 
-func unmarshalJSON(o []byte) interface{} {
+func ExtractJSONValues(o []byte) []string {
+	var values *[]string
 	var m map[string]interface{}
 	err := json.Unmarshal(o, &m)
 	if err != nil {
-		var s []interface{}
-		err = json.Unmarshal(o, &s)
-		if err != nil {
-			log.Fatal(err)
-		}
-		return s
+		log.Fatal(err)
 	}
-	return m
+	values = getValuesFromJson(&[]string{}, m)
+	uniqueKeys := removeDuplicates(*values)
+	return uniqueKeys
 }
 
-func GetKeysFromJson(keys *[]string, m map[string]interface{}) *[]string {
+func getKeysFromJson(keys *[]string, m map[string]interface{}) *[]string {
 	for key, value := range m {
 		*keys = append(*keys, key)
 		switch t := value.(type) {
 		case map[string]interface{}:
-			GetKeysFromJson(keys, t)
+			getKeysFromJson(keys, t)
 		case []interface{}:
 			for item := range t {
 				switch t := t[item].(type) {
 				case map[string]interface{}:
-					GetKeysFromJson(keys, t)
+					getKeysFromJson(keys, t)
 				}
 			}
 		}
@@ -50,21 +47,25 @@ func GetKeysFromJson(keys *[]string, m map[string]interface{}) *[]string {
 	return keys
 }
 
-func GetKeysFromJsonSlice(keys *[]string, s []interface{}) *[]string {
-	for _, item := range s {
-		switch t := item.(type) {
+func getValuesFromJson(values *[]string, m map[string]interface{}) *[]string {
+	for _, value := range m {
+		switch t := value.(type) {
+		case string:
+			*values = append(*values, t)
 		case map[string]interface{}:
-			GetKeysFromJson(keys, t)
+			getValuesFromJson(values, t)
 		case []interface{}:
-			for item := range t {
-				switch t := t[item].(type) {
+			for i := range t {
+				switch typ := t[i].(type) {
+				case string:
+					*values = append(*values, typ)
 				case map[string]interface{}:
-					GetKeysFromJson(keys, t)
+					getValuesFromJson(values, typ)
 				}
 			}
 		}
 	}
-	return keys
+	return values
 }
 
 func removeDuplicates(strSlice []string) []string {
